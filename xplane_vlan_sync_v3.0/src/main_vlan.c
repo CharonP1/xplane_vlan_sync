@@ -46,8 +46,7 @@ typedef struct
 } NetworkConfig;
 
 // 全局pcap句柄
-pcap_t *pcap_handle_group1 = NULL;
-pcap_t *pcap_handle_group2 = NULL;
+pcap_t *pcap_handle = NULL;
 
 // 毫秒级休眠函数
 void msleep(int milliseconds)
@@ -474,7 +473,7 @@ int sendDREF_vlan(pcap_t *handle, NetworkConfig *net_config,
 
 int main(int argc, char *argv[])
 {
-    printf("X-Plane双机同步程序(修复版VLAN实现 - 固定源端口)\n");
+    printf("X-Plane多机同步程序(TSN对比演示版)\n");
     printf("==========================================\n");
 
     // ==================== 数据优先级定义 ====================
@@ -482,71 +481,62 @@ int main(int argc, char *argv[])
     #define PCP_CTRL 5 // CTRL数据优先级 (高)
     #define PCP_DREF 3 // DREF数据优先级 (中)
     #define PCP_TEXT 1 // 文本数据优先级 (低)
+    #define PCP_STD 0 // 普通路径: 尽力而为(Best Effort)
 
     // ==================== 网络配置 ====================
-    NetworkConfig net_config;
+    NetworkConfig config_tsn; // 从机1 (TSN路径)
+    NetworkConfig config_std; // 从机2 (普通路径)
 
-    // 网络接口配置
-    strncpy(net_config.interface, "enp5s0", sizeof(net_config.interface));
+    // 1. 公共配置 (接口与源地址)
+    const char *IFACE_NAME = "enp5s0";
+    u_char MAC_HOST[6] = {0x54, 0x43, 0x41, 0x00, 0x00, 0x30};      // 主机 MAC
+    u_char MAC_SLAVE1[6] = {0x54, 0x43, 0x41, 0x00, 0x00, 0x40};    // 从机1 MAC 54:43:41:00:00:40
+    u_char MAC_SLAVE2[6] = {0x54, 0x43, 0x41, 0x00, 0x00, 0x10};    // 从机2 MAC 54:43:41:00:00:10
+    char *IP_HOST = "192.168.2.30";                                 // 主机 IP
+    char *IP_SLAVE1 = "192.168.2.40";                               // 从机1 IP
+    char *IP_SLAVE2 = "192.168.2.10";                               // 从机2 IP
+    uint16_t VLAN_ID = 100;    
 
-    // MAC地址配置（根据实际硬件修改）
-    // 源MAC (发送端)
-    u_char src_mac[6] = {0x54, 0x43, 0x41, 0x00, 0x00, 0x30};
-    // 目的MAC (接收端)
-    u_char dst_mac[6] = {0x54, 0x43, 0x41, 0x00, 0x00, 0x40};
-    memcpy(net_config.src_mac, src_mac, 6);
-    memcpy(net_config.dst_mac, dst_mac, 6);
+    // 2. 从机1配置 (TSN - Nd-40)
+    strncpy(config_tsn.interface, IFACE_NAME, 16);
+    memcpy(config_tsn.src_mac, MAC_HOST, 6);
+    memcpy(config_tsn.dst_mac, MAC_SLAVE1, 6);
+    strncpy(config_tsn.src_ip, IP_HOST, 16);        // 源IP地址
+    strncpy(config_tsn.dst_ip, IP_SLAVE1, 16);      // 目的IP地址
+    config_tsn.vlan_id = VLAN_ID;                   // VLAN ID
+    config_tsn.src_port = 49009;                    // 初始默认值，将在初始化时被替换
+    config_tsn.dst_port = 49009;                    // X-Plane默认端口
 
-    // IP地址配置
-    strncpy(net_config.src_ip, "192.168.2.30", sizeof(net_config.src_ip)); // 发送端IP
-    strncpy(net_config.dst_ip, "192.168.2.40", sizeof(net_config.dst_ip)); // 接收端IP
-
-    // VLAN配置
-    net_config.vlan_id = 100;
-    net_config.pcp = 0; // 默认PCP优先级 (可在发送时覆盖)
-
-    // 端口配置 - src_port将在init_pcap_sender中设置为动态端口
-    net_config.src_port = 49009; // 初始默认值，将在初始化时被替换
-    net_config.dst_port = 49009; // X-Plane默认端口
+    // 3. 从机2配置 (普通以太网 - Nd-10)
+    strncpy(config_std.interface, IFACE_NAME, 16);
+    memcpy(config_std.src_mac, MAC_HOST, 6);
+    memcpy(config_std.dst_mac, MAC_SLAVE2, 6);
+    strncpy(config_std.src_ip, IP_HOST, 16);
+    strncpy(config_std.dst_ip, IP_SLAVE2, 16);
+    config_std.vlan_id = VLAN_ID;                   // 同样使用VLAN100，但在交换机中不配置QoS
+    config_std.src_port = 49009;                    // 初始默认值，将在初始化时被替换
+    config_std.dst_port = 49009;                    // X-Plane默认端口
 
     // ==================== 显示配置信息 ====================
-    printf("\n网络配置信息:\n");
-    printf("  接口: %s\n", net_config.interface);
-    printf("  源MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
-           net_config.src_mac[0], net_config.src_mac[1], net_config.src_mac[2],
-           net_config.src_mac[3], net_config.src_mac[4], net_config.src_mac[5]);
-    printf("  目的MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
-           net_config.dst_mac[0], net_config.dst_mac[1], net_config.dst_mac[2],
-           net_config.dst_mac[3], net_config.dst_mac[4], net_config.dst_mac[5]);
-    printf("  源IP: %s\n", net_config.src_ip);
-    printf("  目的IP: %s:%d\n", net_config.dst_ip, net_config.dst_port);
-    printf("  VLAN ID: %d\n", net_config.vlan_id);
-    printf("  默认PCP: %d\n", net_config.pcp);
-    printf("\n数据优先级配置:\n");
-    printf("  POSI数据: PCP=%d (高优先级)\n", PCP_POSI);
-    printf("  CTRL数据: PCP=%d (高优先级)\n", PCP_CTRL);
-    printf("  DREF数据: PCP=%d (中优先级)\n", PCP_DREF);
-    printf("  文本数据: PCP=%d (低优先级)\n", PCP_TEXT);
-    printf("\n");
+    printf("\n[TSN通道] 目标: %s (MAC: ...40), PCP: 高\n", config_tsn.dst_ip);
+    printf("[STD通道] 目标: %s (MAC: ...10), PCP: 0\n", config_std.dst_ip);
 
     // ==================== 网络初始化 ====================
-    pcap_t *pcap_handle_group1 = NULL;
-    pcap_t *pcap_handle_group2 = NULL;
+    pcap_t *pcap_handle = NULL;
 
-    if (init_pcap_sender(net_config.interface, &net_config, &pcap_handle_group1) < 0)
+    // 只需初始化一次接口，两个配置共用同一个 handle 发送
+    if (init_pcap_sender(config_tsn.interface, &config_tsn, &pcap_handle) < 0)
     {
-        printf("pcap初始化失败, 程序退出\n");
+        printf("pcap初始化失败\n");
         return EXIT_FAILURE;
     }
-    pcap_handle_group2 = pcap_handle_group1;
-
-    // 显示最终的端口配置
-    printf("最终端口配置: 源端口=%d, 目的端口=%d\n", 
-           net_config.src_port, net_config.dst_port);
+    // 同步源端口 (确保两台从机看到的是同一个源端口)
+    config_std.src_port = config_tsn.src_port;
+    config_std.ip_identification = config_tsn.ip_identification;
 
     // ==================== X-Plane连接 ====================
     // 连接到主机A (使用XPC库)
-    XPCSocket sockHost = aopenUDP(net_config.src_ip, 49009, 0);
+    XPCSocket sockHost = aopenUDP(IP_HOST, 49009, 0);
 
     // 验证连接
     printf("验证连接到主机A (%s)...\n", net_config.src_ip);
@@ -560,7 +550,7 @@ int main(int argc, char *argv[])
     printf("✓ 成功连接到主机A\n");
 
     // ==================== 阶段1: 初始化状态 ====================
-    printf("\n阶段1: 初始化飞行状态\n");
+    printf("\n阶段1: 初始化两台从机状态\n");
     pauseSim(sockHost, 1);
 
     float initPOSI[7] = {40.191f, 116.63f, 2500.0f, 0.0f, 0.0f, 0.0f, 1.0f};
@@ -570,10 +560,13 @@ int main(int argc, char *argv[])
     // 设置主机A
     sendPOSI(sockHost, initPOSI, 7, 0);
     sendCTRL(sockHost, initCTRL, 5, 0);
-    // 设置从机B - 使用修复的VLAN发送
-    sendPOSI_vlan(pcap_handle_group1, &net_config, initPOSI, 7, 0, PCP_POSI);
-    sendCTRL_vlan(pcap_handle_group1, &net_config, initCTRL, 5, 0, PCP_CTRL);
-
+    //---------------------------------------------------------------------------------------------
+    // 发送给从机1 (TSN) - 高优先级
+    sendPOSI_vlan(pcap_handle, &config_tsn, initPOSI, 7, 0, PCP_POSI);
+    sendCTRL_vlan(pcap_handle, &config_tsn, initCTRL, 5, 0, PCP_CTRL);
+    // 发送给从机2 (普通) - 低优先级 (PCP 0)
+    sendPOSI_vlan(pcap_handle, &config_std, initPOSI, 7, 0, PCP_STD);
+    sendCTRL_vlan(pcap_handle, &config_std, initCTRL, 5, 0, PCP_STD);
     sleep(2);
     printf("恢复模拟...\n");
     pauseSim(sockHost, 0);
@@ -591,7 +584,7 @@ int main(int argc, char *argv[])
         "sim/flightmodel/position/P",
         "sim/flightmodel/position/Q",
         "sim/flightmodel/position/R"};
-    const int drefCount = 7;
+    const int drefCount = 7;        //dataref计数
 
     float *drefValues[drefCount];
     int drefSizes[drefCount];
@@ -605,11 +598,10 @@ int main(int argc, char *argv[])
     float CTRL[7];
 
     float syncInterval = 0.1;                            // 同步间隔
-    int syncDuration = 10;                               // 同步时间
+    int syncDuration = 100;                              // 同步时间
     int syncCycles = (int)(syncDuration / syncInterval); // 同步次数
 
-    printf("开始同步循环 (%d次, 间隔%.1fms)...\n", syncCycles, syncInterval * 1000);
-    printf("使用固定源端口: %d\n", net_config.src_port);
+    printf("开始双路同步 (%d次, 间隔%.1fms)...\n", syncCycles, syncInterval * 1000);
 
     for (int i = 0; i < syncCycles; i++)
     {
@@ -621,10 +613,16 @@ int main(int argc, char *argv[])
         if (getCTRL(sockHost, CTRL, 0) < 0)
             break;
 
-        // 使用修复的VLAN同步到从机B，使用不同的PCP优先级
-        sendPOSI_vlan(pcap_handle_group1, &net_config, POSI, 7, 0, PCP_POSI);
-        sendCTRL_vlan(pcap_handle_group1, &net_config, CTRL, 7, 0, PCP_CTRL);
-        sendDREFs_vlan(pcap_handle_group2, &net_config, DREFS, drefValues, drefSizes, drefCount, PCP_DREF);
+        // 2. [修改 4] 发送给 TSN 从机 (PCP 5)
+        sendPOSI_vlan(pcap_handle, &config_tsn, POSI, 7, 0, PCP_POSI);
+        sendCTRL_vlan(pcap_handle, &config_tsn, CTRL, 7, 0, PCP_CTRL);
+        sendDREFs_vlan(pcap_handle, &config_tsn, DREFS, drefValues, drefSizes, drefCount, PCP_DREF);
+
+        // 3. [修改 5] 发送给 普通 从机 (PCP 0)
+        // 注意：普通交换机可能会忽略Tag或忽略优先级，这里显式设为0
+        sendPOSI_vlan(pcap_handle, &config_std, POSI, 7, 0, PCP_STD);
+        sendCTRL_vlan(pcap_handle, &config_std, CTRL, 7, 0, PCP_STD);
+        sendDREFs_vlan(pcap_handle, &config_std, DREFS, drefValues, drefSizes, drefCount, PCP_STD);
 
         // 显示进度
         if (i % 5 == 0)
@@ -642,15 +640,14 @@ int main(int argc, char *argv[])
         free(drefValues[i]);
     }
 
-    if (pcap_handle_group1 != NULL)
+    if (pcap_handle != NULL)
     {
-        pcap_close(pcap_handle_group1);
+        pcap_close(pcap_handle);
     }
     closeUDP(sockHost);
 
     printf("\n==========================================\n");
     printf("同步完成！\n");
-    printf("修复版VLAN帧发送模式已完成（固定源端口: %d）\n", net_config.src_port);
     printf("==========================================\n");
 
     return 0;

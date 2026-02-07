@@ -1,21 +1,22 @@
 #!/bin/bash
 # 主机VLAN配置脚本
 
-INTERFACE="enp5s0"            # 网络接口名称
-VLAN_ID=100                   # VLAN ID
-VLAN_IP="192.168.2.30"        # 主机VLAN接口IP
-NETMASK="24"                  # 子网掩码
+INTERFACE="enp5s0"
+VLAN_ID=100
+VLAN_IP="192.168.2.30"
+NETMASK="24"
+# [新增] 主机MAC
+HOST_MAC="54:43:41:00:00:30"
 
-echo "配置主机VLAN接口..."
-echo "网络接口: $INTERFACE"
-echo "VLAN ID: $VLAN_ID"
-echo "VLAN IP: $VLAN_IP/$NETMASK"
+echo "=== 配置主机 (Sender) ==="
+if [ "$EUID" -ne 0 ]; then echo "请使用sudo运行"; exit 1; fi
 
-# 检查root权限
-if [ "$EUID" -ne 0 ]; then
-    echo "请使用root权限运行此脚本: sudo $0"
-    exit 1
-fi
+# 修改物理MAC
+echo "设置物理MAC为 $HOST_MAC ..."
+ip link set dev "$INTERFACE" down
+ip link set dev "$INTERFACE" address "$HOST_MAC"
+ip link set dev "$INTERFACE" up
+sleep 1
 
 # 加载802.1Q模块
 echo "加载802.1Q内核模块..."
