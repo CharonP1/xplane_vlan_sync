@@ -1,0 +1,59 @@
+TSN4@TSN4-systemproductname:~/Data/Project/xplane_vlan_sync_v2.0$ make configure-slave
+配置从机VLAN接口 (X-Plane直接接收模式)...
+sudo sh scripts/configure_vlan_slave.sh
+输入密码
+配置从机VLAN接口(X-Plane直接接收模式)...
+网络接口: enp5s0
+VLAN ID: 100
+VLAN IP: 192.168.2.40/24
+scripts/configure_vlan_slave.sh: 15: [: Illegal number: 
+加载802.1Q内核模块...
+libkmod: ERROR ../libkmod/libkmod-config.c:657 kmod_config_parse: /etc/modprobe.d/mqnic.conf line 1: ignoring bad line starting with 'mqnic'
+创建VLAN接口 enp5s0.100...
+启用VLAN接口...
+配置IP地址...
+配置路由...
+RTNETLINK answers: File exists
+
+VLAN配置完成!
+接口状态:
+4: enp5s0.100@enp5s0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default qlen 1000
+    link/ether 54:43:41:00:00:40 brd ff:ff:ff:ff:ff:ff
+
+IP地址信息:
+4: enp5s0.100@enp5s0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000
+    link/ether 54:43:41:00:00:40 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.2.40/24 scope global enp5s0.100
+       valid_lft forever preferred_lft forever
+    inet6 fe80::5643:41ff:fe00:40/64 scope link tentative 
+       valid_lft forever preferred_lft forever
+
+路由信息:
+default via 192.168.2.1 dev enp5s0 proto static metric 100 
+169.254.0.0/16 dev enp5s0 scope link metric 1000 
+192.168.2.0/24 dev enp5s0.100 proto kernel scope link src 192.168.2.40 
+192.168.2.0/24 dev enp5s0 proto kernel scope link src 192.168.2.40 metric 100 
+
+重要提示:
+1. 确保X-Plane插件监听在VLAN接口IP: 192.168.2.40
+2. 发送端的目的IP必须设置为: 192.168.2.40
+3. 发送端的VLAN ID必须设置为: 100
+TSN4@TSN4-systemproductname:~/Data/Project/xplane_vlan_sync_v2.0$ make status-vlan
+VLAN接口状态:
+4: enp5s0.100@enp5s0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default qlen 1000
+
+IP地址信息:
+4: enp5s0.100@enp5s0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000
+    link/ether 54:43:41:00:00:40 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.2.40/24 scope global enp5s0.100
+       valid_lft forever preferred_lft forever
+    inet6 fe80::5643:41ff:fe00:40/64 scope link 
+TSN4@TSN4-systemproductname:~/Data/Project/xplane_vlan_sync_v2.0$ make verify-vlan
+验证VLAN配置...
+1. 检查VLAN接口:
+✓ 主机VLAN接口存在
+2. 检查IP配置:
+✓ 主机VLAN IP已配置
+3. 测试连通性:
+✓ 可以ping通从机
+

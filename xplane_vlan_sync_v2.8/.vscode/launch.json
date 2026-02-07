@@ -1,0 +1,67 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "C Debug (演示模式)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/xplane_sync_vlan_demo",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "为 gdb 启用整齐打印",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "build-demo",
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "C Debug (真实模式)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/xplane_sync_vlan",
+            "args": ["--real-pcap"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "为 gdb 启用整齐打印",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "build-release",
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "C Debug (带参数)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/xplane_sync_vlan",
+            "args": ["--real-pcap", "--interface=eth0"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "为 gdb 启用整齐打印",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "build-release"
+        }
+    ]
+}

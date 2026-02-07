@@ -1,0 +1,64 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build-demo",
+            "type": "shell",
+            "command": "gcc",
+            "args": [
+                "-g",
+                "-D__USE_MISC=1",
+                "-Wall",
+                "-Wextra",
+                "-O0",
+                "-o",
+                "${workspaceFolder}/build/xplane_sync_vlan_demo",
+                "${workspaceFolder}/src/main_vlan.c",
+                "${workspaceFolder}/src/xplaneConnect.c"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "编译演示版本(不带pcap)"
+        },
+        {
+            "label": "build-release",
+            "type": "shell",
+            "command": "gcc",
+            "args": [
+                "-g",
+                "-D__USE_MISC=1",
+                "-Wall",
+                "-Wextra",
+                "-O0",
+                "-o",
+                "${workspaceFolder}/build/xplane_sync_vlan",
+                "${workspaceFolder}/src/main_vlan.c",
+                "${workspaceFolder}/src/xplaneConnect.c",
+                "-lpcap"
+            ],
+            "group": "build",
+            "detail": "编译完整版本(带pcap)"
+        },
+        {
+            "label": "build-with-pkgconfig",
+            "type": "shell",
+            "command": "gcc",
+            "args": [
+                "-g",
+                "-D__USE_MISC=1",
+                "-Wall",
+                "-Wextra",
+                "-O0",
+                "-o",
+                "${workspaceFolder}/build/xplane_sync_vlan_pkgconfig",
+                "${workspaceFolder}/src/main_vlan.c",
+                "${workspaceFolder}/src/xplaneConnect.c",
+                "$(pkg-config --cflags --libs libpcap)"
+            ],
+            "group": "build",
+            "detail": "使用pkg-config编译"
+        }
+    ]
+}
