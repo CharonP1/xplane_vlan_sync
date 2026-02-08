@@ -1,0 +1,25 @@
+TSN03@TSN03-systemproductname:~/Data/Project/xplane_sync/xplane_vlan_sync_v3.1$ make build
+Makefile:39: 警告：覆盖关于目标“build”的配方
+Makefile:33: 警告：忽略关于目标“build”的旧配方
+make: 放弃循环依赖 build/main_vlan.o <- build 。
+gcc -Wall -O2 -I./src -c src/main_vlan.c -o build/main_vlan.o
+src/main_vlan.c: In function ‘main’:
+src/main_vlan.c:492:12: warning: unused variable ‘MAC_SLAVE2’ [-Wunused-variable]
+  492 |     u_char MAC_SLAVE2[6] = {0x54, 0x43, 0x41, 0x00, 0x00, 0x10};    // 从机2 MAC 54:43:41:00:00:10
+      |            ^~~~~~~~~~
+Assembler messages:
+致命错误：can't create build/main_vlan.o: 没有那个文件或目录
+make: *** [Makefile:36：build/main_vlan.o] 错误 1
+TSN03@TSN03-systemproductname:~/Data/Project/xplane_sync/xplane_vlan_sync_v3.1$ make
+Makefile:39: 警告：覆盖关于目标“build”的配方
+Makefile:33: 警告：忽略关于目标“build”的旧配方
+make: 放弃循环依赖 build/main_vlan.o <- build 。
+gcc -Wall -O2 -I./src -c src/main_vlan.c -o build/main_vlan.o
+src/main_vlan.c: In function ‘main’:
+src/main_vlan.c:492:12: warning: unused variable ‘MAC_SLAVE2’ [-Wunused-variable]
+  492 |     u_char MAC_SLAVE2[6] = {0x54, 0x43, 0x41, 0x00, 0x00, 0x10};    // 从机2 MAC 54:43:41:00:00:10
+      |            ^~~~~~~~~~
+Assembler messages:
+致命错误：can't create build/main_vlan.o: 没有那个文件或目录
+make: *** [Makefile:36：build/main_vlan.o] 错误 1
+
