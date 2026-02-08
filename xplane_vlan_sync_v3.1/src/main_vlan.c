@@ -481,11 +481,9 @@ int main(int argc, char *argv[])
     #define PCP_CTRL 5 // CTRL数据优先级 (高)
     #define PCP_DREF 3 // DREF数据优先级 (中)
     #define PCP_TEXT 1 // 文本数据优先级 (低)
-    #define PCP_STD 0 // 普通路径: 尽力而为(Best Effort)
 
     // ==================== 网络配置 ====================
     NetworkConfig config_tsn; // 从机1 (TSN路径)
-    NetworkConfig config_std; // 从机2 (普通路径)
 
     // 1. 公共配置 (接口与源地址)
     const char *IFACE_NAME = "enp5s0";
@@ -507,16 +505,6 @@ int main(int argc, char *argv[])
     config_tsn.src_port = 49009;                    // 初始默认值，将在初始化时被替换
     config_tsn.dst_port = 49009;                    // X-Plane默认端口
 
-    // 3. 从机2配置 (普通以太网 - Nd-10)
-    strncpy(config_std.interface, IFACE_NAME, 16);
-    memcpy(config_std.src_mac, MAC_HOST, 6);
-    memcpy(config_std.dst_mac, MAC_SLAVE2, 6);
-    strncpy(config_std.src_ip, IP_HOST, 16);
-    strncpy(config_std.dst_ip, IP_SLAVE2, 16);
-    config_std.vlan_id = VLAN_ID;                   // 同样使用VLAN100，但在交换机中不配置QoS
-    config_std.src_port = 49009;                    // 初始默认值，将在初始化时被替换
-    config_std.dst_port = 49009;                    // X-Plane默认端口
-
     // ==================== 显示配置信息 ====================
     printf("\n[TSN通道] 目标: %s (MAC: ...40), PCP: 高\n", config_tsn.dst_ip);
     printf("[STD通道] 目标: %s (MAC: ...10), PCP: 0\n", config_std.dst_ip);
@@ -524,15 +512,17 @@ int main(int argc, char *argv[])
     // ==================== 网络初始化 ====================
     pcap_t *pcap_handle = NULL;
 
-    // 只需初始化一次接口，两个配置共用同一个 handle 发送
+    // 初始化 TSN 发送通道 Raw Socket)
     if (init_pcap_sender(config_tsn.interface, &config_tsn, &pcap_handle) < 0)
     {
         printf("pcap初始化失败\n");
         return EXIT_FAILURE;
     }
-    // 同步源端口 (确保两台从机看到的是同一个源端口)
-    config_std.src_port = config_tsn.src_port;
-    config_std.ip_identification = config_tsn.ip_identification;
+    // 初始化 普通 发送通道 Standard UDP)
+    // 使用 XPC 库原有的 socket 连接方式连接到从机2
+    // 注意：aopenUDP 的第三个参数通常设为 0
+    printf("初始化普通UDP通道 -> %s:49009\n", IP_SLAVE2);
+    XPCSocket sockSlaveStd = aopenUDP(IP_SLAVE2, 49009, 0);    
 
     // ==================== X-Plane连接 ====================
     // 连接到主机A (使用XPC库)
@@ -564,9 +554,10 @@ int main(int argc, char *argv[])
     // 发送给从机1 (TSN) - 高优先级
     sendPOSI_vlan(pcap_handle, &config_tsn, initPOSI, 7, 0, PCP_POSI);
     sendCTRL_vlan(pcap_handle, &config_tsn, initCTRL, 5, 0, PCP_CTRL);
-    // 发送给从机2 (普通) - 低优先级 (PCP 0)
-    sendPOSI_vlan(pcap_handle, &config_std, initPOSI, 7, 0, PCP_STD);
-    sendCTRL_vlan(pcap_handle, &config_std, initCTRL, 5, 0, PCP_STD);
+    // 2. 发送给 普通 从机 (标准 UDP)
+    sendPOSI(sockSlaveStd, initPOSI, 7, 0);
+    sendCTRL(sockSlaveStd, initCTRL, 5, 0);
+
     sleep(2);
     printf("恢复模拟...\n");
     pauseSim(sockHost, 0);
@@ -613,18 +604,15 @@ int main(int argc, char *argv[])
         if (getCTRL(sockHost, CTRL, 0) < 0)
             break;
 
-        // 2. [修改 4] 发送给 TSN 从机 (PCP 5)
+        // 2. 发送给 TSN 从机
         sendPOSI_vlan(pcap_handle, &config_tsn, POSI, 7, 0, PCP_POSI);
         sendCTRL_vlan(pcap_handle, &config_tsn, CTRL, 7, 0, PCP_CTRL);
         sendDREFs_vlan(pcap_handle, &config_tsn, DREFS, drefValues, drefSizes, drefCount, PCP_DREF);
 
-        // 3. [修改 5] 发送给 普通 从机 (PCP 0)
-        // 注意：普通交换机可能会忽略Tag或忽略优先级，这里显式设为0
-        sendPOSI_vlan(pcap_handle, &config_std, POSI, 7, 0, PCP_STD);
-        sendCTRL_vlan(pcap_handle, &config_std, CTRL, 7, 0, PCP_STD);
-        sendDREFs_vlan(pcap_handle, &config_std, DREFS, drefValues, drefSizes, drefCount, PCP_STD);
-
-        // 显示进度
+        // 3. 发送给 普通 从机 (PCP 0)
+        sendPOSI(sockSlaveStd, POSI, 7, 0);
+        sendCTRL(sockSlaveStd, CTRL, 7, 0);
+        sendDREFs(sockSlaveStd, DREFS, drefValues, drefCount);
         if (i % 5 == 0)
         {
             printf("[%3d/%3d] 位置: 经度=%.5f, 纬度=%.5f, 高度=%.1f\n",
@@ -644,6 +632,7 @@ int main(int argc, char *argv[])
     {
         pcap_close(pcap_handle);
     }
+    closeUDP(sockSlaveStd);
     closeUDP(sockHost);
 
     printf("\n==========================================\n");

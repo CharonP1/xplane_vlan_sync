@@ -21,8 +21,8 @@ IFACE_NAME = enp5s0
 VLAN_ID = 100
 
 .PHONY: all build clean install-deps \
-        setup-host setup-slave-tsn setup-slave-std \
-        run-sender remove-vlan help
+		setup-host setup-slave-tsn \
+		setup-slave-std run-sender help
 
 # 默认目标
 all: build
@@ -53,21 +53,19 @@ install-deps:
 
 # 2. 配置主机 (Sender - Nd-30)
 setup-host:
-	@echo ">>> 配置主机网络环境 (VLAN 100, IP .30)..."
+	@echo "配置主机 (Hybrid Sender)..."
 	chmod +x $(SCRIPT_DIR)/configure_vlan_host.sh
 	sudo $(SCRIPT_DIR)/configure_vlan_host.sh
 
-# 3. 配置TSN从机 (Receiver 1 - Nd-40)
 setup-slave-tsn:
-	@echo ">>> 配置TSN从机网络环境 (VLAN 100, IP .40)..."
+	@echo "配置 TSN 从机 (VLAN 100)..."
 	chmod +x $(SCRIPT_DIR)/configure_vlan_slave_tsn.sh
 	sudo $(SCRIPT_DIR)/configure_vlan_slave_tsn.sh
 
-# 4. 配置普通从机 (Receiver 2 - Nd-10)
 setup-slave-std:
-	@echo ">>> 配置普通从机网络环境 (VLAN 100, IP .10)..."
-	chmod +x $(SCRIPT_DIR)/configure_vlan_slave_std.sh
-	sudo $(SCRIPT_DIR)/configure_vlan_slave_std.sh
+	@echo "配置 普通 从机 (Standard Ethernet)..."
+	chmod +x $(SCRIPT_DIR)/configure_slave_std.sh
+	sudo $(SCRIPT_DIR)/configure_slave_std.sh
 
 # ==================== 网络清理 (新增) ====================
 
