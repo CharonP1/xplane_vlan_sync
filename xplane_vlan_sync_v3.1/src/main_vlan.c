@@ -539,12 +539,12 @@ int main(int argc, char *argv[])
     XPCSocket sockHost = aopenUDP(IP_HOST, 49009, 0);
 
     // 验证连接
-    printf("验证连接到主机A (%s)...\n", net_config.src_ip);
+    printf("验证连接到主机A (%s)...\n", config_tsn.src_ip);
     float tVal[1];
     int tSize = 1;
     if (getDREF(sockHost, "sim/test/test_float", tVal, &tSize) < 0)
     {
-        printf("错误: 无法连接到主机A %s\n", net_config.src_ip);
+        printf("错误: 无法连接到主机A %s\n", config_tsn.src_ip);
         return EXIT_FAILURE;
     }
     printf("✓ 成功连接到主机A\n");
