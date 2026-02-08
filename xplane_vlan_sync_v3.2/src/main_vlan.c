@@ -489,7 +489,6 @@ int main(int argc, char *argv[])
     const char *IFACE_NAME = "enp5s0";
     u_char MAC_HOST[6] = {0x54, 0x43, 0x41, 0x00, 0x00, 0x30};      // 主机 MAC
     u_char MAC_SLAVE1[6] = {0x54, 0x43, 0x41, 0x00, 0x00, 0x40};    // 从机1 MAC 54:43:41:00:00:40
-    u_char MAC_SLAVE2[6] = {0x54, 0x43, 0x41, 0x00, 0x00, 0x10};    // 从机2 MAC 54:43:41:00:00:10
     char *IP_HOST = "192.168.2.30";                                 // 主机 IP
     char *IP_SLAVE1 = "192.168.2.40";                               // 从机1 IP
     char *IP_SLAVE2 = "192.168.2.10";                               // 从机2 IP
@@ -631,8 +630,8 @@ int main(int argc, char *argv[])
     {
         pcap_close(pcap_handle);
     }
-    closeUDP(sockSlaveStd);
     closeUDP(sockHost);
+    closeUDP(sockSlaveStd);
 
     printf("\n==========================================\n");
     printf("同步完成！\n");
