@@ -507,7 +507,6 @@ int main(int argc, char *argv[])
 
     // ==================== 显示配置信息 ====================
     printf("\n[TSN通道] 目标: %s (MAC: ...40), PCP: 高\n", config_tsn.dst_ip);
-    printf("[STD通道] 目标: %s (MAC: ...10), PCP: 0\n", config_std.dst_ip);
 
     // ==================== 网络初始化 ====================
     pcap_t *pcap_handle = NULL;
@@ -612,7 +611,7 @@ int main(int argc, char *argv[])
         // 3. 发送给 普通 从机 (PCP 0)
         sendPOSI(sockSlaveStd, POSI, 7, 0);
         sendCTRL(sockSlaveStd, CTRL, 7, 0);
-        sendDREFs(sockSlaveStd, DREFS, drefValues, drefCount);
+        sendDREFs(sockSlaveStd, DREFS, drefValues, drefSizes, drefCount);
         if (i % 5 == 0)
         {
             printf("[%3d/%3d] 位置: 经度=%.5f, 纬度=%.5f, 高度=%.1f\n",
